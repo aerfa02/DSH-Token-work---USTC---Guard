@@ -1,37 +1,20 @@
-param(
-  [ValidateSet('Install')][string]$Mode = 'Install',
-  [string]$DshDirectory,
-  [string]$ProfileDirectory
-)
-$ErrorActionPreference = 'Stop'
+param([ValidateSet('Install','Uninstall')][string]$Mode='Install')
+$ErrorActionPreference='Stop'
+if([Console]::IsInputRedirected){[Console]::InputEncoding=[Text.UTF8Encoding]::new($false)}
 try {
-  if (-not $DshDirectory) {
-    $candidates = @('E:\dsh', (Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness'), (Join-Path $env:ProgramFiles 'DeepSeek Harness'))
-    $found = $candidates | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'DeepSeek Harness.exe') } | Select-Object -First 1
-    $answer = Read-Host "DSH folder (Enter = $found)"
-    $DshDirectory = if ($answer) { $answer.Trim('"') } else { $found }
-  }
-  if (-not $DshDirectory) { throw 'Please enter the folder containing DeepSeek Harness.exe' }
-  $DshDirectory = [IO.Path]::GetFullPath($DshDirectory)
-  $exe = Join-Path $DshDirectory 'DeepSeek Harness.exe'
-  if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'DeepSeek Harness.exe not found in selected folder' }
-  if (Get-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue) { throw 'Exit DSH completely (including tray) and retry.' }
-  if ($Mode -eq 'Install') {
-    if (-not $ProfileDirectory) {
-      $defaultProfile = Join-Path $env:USERPROFILE '.dsh\profiles\desktop'
-      $answer = Read-Host "DSH profile folder (Enter = $defaultProfile)"
-      $ProfileDirectory = if ($answer) { $answer.Trim('"') } else { $defaultProfile }
-    }
-    & (Join-Path $PSScriptRoot 'install-local.ps1') -DshDirectory $DshDirectory -ProfileDirectory $ProfileDirectory -SourceDirectory (Join-Path (Split-Path -Parent $PSScriptRoot) 'plugin')
-    $env:GUARD_PACKAGE = Join-Path $DshDirectory 'plugins\dsh-ustc-api-guard'
-    $env:DSH_PROFILE = $ProfileDirectory
-    $env:ELECTRON_RUN_AS_NODE = '1'
-    & $exe (Join-Path $PSScriptRoot 'check-installation.mjs') | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw 'Post-install verification failed. Keep the displayed backups.' }
-  }
-  Write-Host 'SUCCESS. You can now start DSH normally.' -ForegroundColor Green
-  exit 0
-} catch {
-  Write-Host $_.Exception.Message -ForegroundColor Red
-  exit 1
-}
+  Write-Host 'USTC API Guard 1.0.0' -ForegroundColor Cyan
+  Write-Host 'Save work and completely exit the application, including tray/updater.'
+  $taskProduct=Read-Host 'Application: 1 = DSH, 2 = TokenWorks (Enter = 1)'
+  $taskProduct=if($taskProduct -eq '2'){'TokenWorks'}elseif(-not $taskProduct -or $taskProduct -eq '1'){'DSH'}else{throw 'Choose 1 or 2.'}
+  $taskName=if($taskProduct -eq 'DSH'){'DeepSeek Harness.exe'}else{'EduWork-Electron.exe'}
+  $taskApplication=(Read-Host ('Full path to '+$taskName+' (quotes allowed)')).Trim('"')
+  $taskProfiles=if($taskProduct -eq 'DSH'){Join-Path $env:USERPROFILE '.dsh\profiles'}else{Join-Path $env:LOCALAPPDATA 'tokenworks-electron\dsh\profiles'}
+  $taskCandidates=@(Get-ChildItem -LiteralPath $taskProfiles -Directory -ErrorAction SilentlyContinue | Where-Object {Test-Path -LiteralPath (Join-Path $_.FullName 'package.json') -PathType Leaf} | Sort-Object Name)
+  for($taskIndex=0;$taskIndex -lt $taskCandidates.Count;$taskIndex++){Write-Host (('{0}: {1}' -f ($taskIndex+1),$taskCandidates[$taskIndex].FullName))}
+  $taskAnswer=Read-Host 'Profile: choose a listed number or enter full folder path containing package.json'
+  $taskIndex=0
+  if([int]::TryParse($taskAnswer,[ref]$taskIndex) -and $taskIndex -gt 0 -and $taskIndex -le $taskCandidates.Count){$taskProfile=$taskCandidates[$taskIndex-1].FullName}else{$taskProfile=$taskAnswer.Trim('"')}
+  if(-not $taskProfile){throw 'Select the actual profile. Start the application once first if no profile exists.'}
+  & (Join-Path $PSScriptRoot 'manage-release.ps1') -Mode $Mode -Product $taskProduct -ApplicationPath $taskApplication -ProfileDirectory $taskProfile
+  exit $LASTEXITCODE
+} catch { Write-Host $_.Exception.Message -ForegroundColor Red; exit 1 }

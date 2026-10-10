@@ -1,11 +1,12 @@
 param(
-  [string]$DshDirectory = 'E:\dsh',
-  [string]$ProfileDirectory = (Join-Path $env:USERPROFILE '.dsh\profiles\desktop'),
+  [Parameter(Mandatory=$true)][string]$DshDirectory,
+  [Parameter(Mandatory=$true)][string]$ProfileDirectory,
   [string]$ApplicationExecutable = 'DeepSeek Harness.exe',
   [string]$PluginDirectory = '',
-  [string]$SourceDirectory = (Join-Path (Split-Path -Parent $PSScriptRoot) 'plugin')
+  [string]$SourceDirectory = ''
 )
 $ErrorActionPreference = 'Stop'
+if (-not $SourceDirectory) { $SourceDirectory = if ((Split-Path -Leaf $PSScriptRoot) -eq '_installer') { Split-Path -Parent $PSScriptRoot } else { Join-Path (Split-Path -Parent $PSScriptRoot) 'plugin' } }
 $taskSource = [IO.Path]::GetFullPath($SourceDirectory)
 $taskDsh = [IO.Path]::GetFullPath($DshDirectory)
 $taskInstallRoot = if ($PluginDirectory) { [IO.Path]::GetFullPath($PluginDirectory) } else { Join-Path $taskDsh 'plugins' }
@@ -48,10 +49,18 @@ function Get-TaskDigest([string]$Path) {
   finally { $taskStream.Dispose(); $taskHasher.Dispose() }
 }
 
+function Assert-TaskApplicationStopped {
+  $taskRunning = @(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ApplicationExecutable)) -ErrorAction SilentlyContinue | Where-Object { -not $_.Path -or $_.Path.StartsWith($taskDsh.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) })
+  if ($taskRunning.Count) { throw 'Save work and fully exit the application (including tray) before installing.' }
+  $taskProcesses = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($taskDsh.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) })
+  if ($taskProcesses.Count) { throw 'Exit application and updater processes before installing.' }
+}
+
 # All validation precedes changing a healthy runtime or profile.
 if ([IO.Path]::GetFileName($ApplicationExecutable) -ne $ApplicationExecutable -or $ApplicationExecutable -notlike '*.exe') { throw 'Invalid application executable name' }
 if (-not (Test-Path -LiteralPath (Join-Path $taskDsh $ApplicationExecutable) -PathType Leaf)) { throw 'DSH installation not found' }
 if (-not (Test-Path -LiteralPath $taskProfileFile -PathType Leaf)) { throw 'DSH profile not found' }
+Assert-TaskApplicationStopped
 $taskManifest = Get-Content -LiteralPath (Join-Path $taskSource 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $taskProfileBytes = [IO.File]::ReadAllBytes($taskProfileFile)
 $taskProfileData = Get-Content -LiteralPath $taskProfileFile -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -119,6 +128,7 @@ try {
   if ([Convert]::ToBase64String([IO.File]::ReadAllBytes($taskProfileFile)) -ne [Convert]::ToBase64String($taskProfileBytes)) { throw 'Profile changed during preparation; retry without overwriting it' }
   $taskCheckedLink = Get-Item -LiteralPath $taskLink -Force -ErrorAction SilentlyContinue
   if ([bool]$taskCheckedLink -ne [bool]$taskOriginalLink -or ($taskCheckedLink -and ($taskCheckedLink.LinkType -ne 'Junction' -or [string]$taskCheckedLink.Target -ne $taskOldTarget))) { throw 'Package link changed during preparation; retry' }
+  Assert-TaskApplicationStopped
   if ($taskInstalledInfo) {
     Move-Item -LiteralPath $taskInstalled -Destination $taskArchive
     $taskArchived = $true
@@ -134,6 +144,13 @@ try {
   [IO.File]::Replace($taskProfileTemp, $taskProfileFile, (Join-Path $taskBackup 'package-before-commit.json'))
   $taskProfileCommitted = $true
   if ([IO.Path]::GetFullPath([string](Get-Item -LiteralPath $taskLink -Force).Target) -ne $taskInstalled) { throw 'Installed link verification failed' }
+  # Final verification remains inside the transaction so failure rolls back.
+  $taskFinalProfile = Get-Content -LiteralPath $taskProfileFile -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($taskFinalProfile.dependencies.'@local/dsh-ustc-api-guard' -ne ('link:'+$taskInstalled.Replace('\','/')) -or $taskFinalProfile.dsh.profile.bundles -notcontains '@local/dsh-ustc-api-guard') { throw 'Final profile verification failed' }
+  foreach ($taskCopied in Get-ChildItem -LiteralPath $taskInstalled -Recurse -File -Force) {
+    $taskRelative = $taskCopied.FullName.Substring($taskInstalled.TrimEnd('\','/').Length + 1)
+    if ((Get-TaskDigest (Join-Path $taskSource $taskRelative)) -ne (Get-TaskDigest $taskCopied.FullName)) { throw 'Final installed file checksum mismatch' }
+  }
   Write-Output ('INSTALLED ' + $taskManifest.version + ': ' + $taskInstalled)
   Write-Output ('PROFILE BACKUP: ' + $taskBackup)
   Write-Output 'Runtime and profile committed; restart DSH normally to load changed code.'

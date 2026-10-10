@@ -1,13 +1,21 @@
 # USTC API Guard 1.0.0
 
-在 DSH 中查看 USTC 模型的用量、预计费用和历史图表。
+在 DSH 或 TokenWorks（词元工坊）中查看 USTC 模型的用量、预计费用和历史图表。
 
 ## 安装
 
-1. 解压随项目提供的 `USTC一键安装包.zip`。
-2. 保存工作，完全退出 DSH，包括托盘中的进程。
-3. 双击 `install.cmd`，按提示选择 DSH 安装目录和当前用户的 profile 路径。
-4. 安装成功后重新启动 DSH。
+面向 Windows 10/11 桌面版 DSH 和 TokenWorks；请先启动应用一次，创建配置。macOS、Linux、Windows ARM 暂未验证。
+
+1. 下载并完整解压 `DSH-Token-Guard-v1.0.0.zip`。
+2. 保存工作，完全退出应用，包括托盘进程和更新器。
+3. 双击 `install.bat`，选择 DSH 或 TokenWorks，输入程序文件的完整路径，再选择实际使用的配置目录。
+4. 提示安装完成后重新启动应用。
+
+无需另外安装 Node.js 或 npm；使用 Windows PowerShell 5.1。配置目录需位于可写的本地 NTFS 磁盘。安装器不固定盘符或用户名，有多个配置时请选对目标。
+
+## 卸载
+
+完全退出应用后，运行解压目录中的 `uninstall.bat`，选择相同程序和配置。卸载会移除插件及加载登记，保留用量记录、其他配置和恢复备份。
 
 ## 使用
 

@@ -1,14 +1,18 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="guide-sha256" content="062d00f7bb92874cf16cc8df8baebdaf20d44d596ac7aa134d869bd0ce0bf5a5"><title>USTC API Guard · 使用说明</title><style>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="guide-sha256" content="6e37b4b695d03f9656b345b5880f2c10f3f2512d5b0fc377ef0ca0b7c4a5f4aa"><title>USTC API Guard · 使用说明</title><style>
 :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f3f7fc;color:#24364e;font:16px/1.8 system-ui,"Microsoft YaHei",sans-serif}main{max-width:860px;margin:32px auto;padding:28px 36px;background:#fff;border:1px solid #dce7f4;border-radius:16px}h1{font-size:30px;line-height:1.4;margin:0 0 16px;color:#225d9e}h2{font-size:23px;margin:30px 0 10px;color:#225d9e}h3{font-size:18px;margin:22px 0 8px}p{margin:10px 0}li{margin:5px 0}ul,ol{padding-left:24px}code{padding:2px 5px;background:#edf3fb;border-radius:4px;font:14px Consolas,monospace;overflow-wrap:anywhere}a{color:#225d9e;overflow-wrap:anywhere}figure{margin:12px 0 24px}img{display:block;max-width:100%;height:auto;border:1px solid #dce7f4;border-radius:10px}@media(max-width:600px){main{margin:12px;padding:20px 18px}h1{font-size:25px}h2{font-size:21px}}@media print{body{background:#fff}main{border:0;margin:0;padding:0}figure{break-inside:avoid}}
 </style></head><body><main><h1>USTC API Guard 1.0.0</h1>
-<p>在 DSH 中查看 USTC 模型的用量、预计费用和历史图表。</p>
+<p>在 DSH 或 TokenWorks（词元工坊）中查看 USTC 模型的用量、预计费用和历史图表。</p>
 <h2>安装</h2>
+<p>面向 Windows 10/11 桌面版 DSH 和 TokenWorks；请先启动应用一次，创建配置。macOS、Linux、Windows ARM 暂未验证。</p>
 <ol>
-<li>解压随项目提供的 <code>USTC一键安装包.zip</code>。</li>
-<li>保存工作，完全退出 DSH，包括托盘中的进程。</li>
-<li>双击 <code>install.cmd</code>，按提示选择 DSH 安装目录和当前用户的 profile 路径。</li>
-<li>安装成功后重新启动 DSH。</li>
+<li>下载并完整解压 <code>DSH-Token-Guard-v1.0.0.zip</code>。</li>
+<li>保存工作，完全退出应用，包括托盘进程和更新器。</li>
+<li>双击 <code>install.bat</code>，选择 DSH 或 TokenWorks，输入程序文件的完整路径，再选择实际使用的配置目录。</li>
+<li>提示安装完成后重新启动应用。</li>
 </ol>
+<p>无需另外安装 Node.js 或 npm；使用 Windows PowerShell 5.1。配置目录需位于可写的本地 NTFS 磁盘。安装器不固定盘符或用户名，有多个配置时请选对目标。</p>
+<h2>卸载</h2>
+<p>完全退出应用后，运行解压目录中的 <code>uninstall.bat</code>，选择相同程序和配置。卸载会移除插件及加载登记，保留用量记录、其他配置和恢复备份。</p>
 <h2>使用</h2>
 <ul>
 <li>选择 USTC 模型后，在面板查看今日、近 3 小时和近 12 小时用量。</li>

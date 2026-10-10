@@ -12,9 +12,9 @@ const release = resolve(process.argv[2] ?? join(root, 'output', `USTC-Guard-${ma
 const extracted = await mkdtemp(join(tmpdir(), 'ustc-release-check-'));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
-async function checkHashes(dir) {
+async function checkHashes(dir, checksum = 'SHA256SUMS.txt') {
   const listed = new Set();
-  for (const line of (await readFile(join(dir, 'SHA256SUMS.txt'), 'utf8')).trim().split('\n')) {
+  for (const line of (await readFile(join(dir, checksum), 'utf8')).trim().split('\n')) {
     const match = /^([a-f0-9]{64})  (.+)$/.exec(line); assert.ok(match);
     const file = resolve(dir, match[2]), rel = relative(dir, file);
     assert.ok(!rel.startsWith('..') && !isAbsolute(rel)); assert.ok(!listed.has(match[2]));
@@ -30,11 +30,11 @@ async function compare(left, right) {
   else assert.equal(digest(await readFile(left)), digest(await readFile(right)), right);
 }
 try {
-  assert.deepEqual((await readdir(release)).sort(), ['SHA256SUMS.txt', 'USTC一键安装包.zip', '使用说明.html'].sort());
+  assert.deepEqual((await readdir(release)).sort(), ['SHA256SUMS.txt', 'DSH-Token-Guard-v1.0.0.zip', '使用说明.html', 'RELEASE-NOTES.md'].sort());
   await checkHashes(release);
-  execFileSync('powershell.exe', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory(' + quote(join(release, 'USTC一键安装包.zip')) + ',' + quote(extracted) + ')'], { windowsHide: true });
-  console.log('PASS: ZIP checksums:', await checkHashes(extracted));
-  assert.deepEqual((await readdir(extracted)).sort(), ['plugin', 'tools', 'install.cmd', '使用说明.html', 'SHA256SUMS.txt'].sort());
+  execFileSync('powershell.exe', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory(' + quote(join(release, 'DSH-Token-Guard-v1.0.0.zip')) + ',' + quote(extracted) + ')'], { windowsHide: true });
+  console.log('PASS: ZIP checksums:', await checkHashes(extracted,'plugin/_installer/SHA256SUMS.txt'));
+  assert.deepEqual((await readdir(extracted)).sort(), ['plugin', 'install.bat', 'uninstall.bat', 'README.md'].sort());
   for (const name of ['package.json', ...manifest.files]) await compare(join(root, 'plugin', name), join(extracted, 'plugin', name));
   const client = await readFile(join(extracted, 'plugin/client.js'), 'utf8');
   const mascot = JSON.parse(client.match(/const MASCOT = (\{[^\n]+\});/)?.[1] ?? 'null');
@@ -43,13 +43,15 @@ try {
   assert.deepEqual(Object.keys(mascot).sort(), ['front', 'hover', 'idle']);
   assert.ok(!(await readdir(join(extracted, 'plugin/assets'))).includes('back.png'));
   assert.ok((await readFile(join(extracted, 'plugin/assets/GIF-SOURCE-NOTICE.md'), 'utf8')).includes('gmskywalker'));
-  for (const name of ['install-local.ps1', 'share-launcher.ps1', 'check-installation.mjs']) assert.equal((await readFile(join(extracted, 'tools', name), 'utf8')).replace(/^\ufeff/, ''), (await readFile(join(root, 'tools', name), 'utf8')).replace(/^\ufeff/, ''));
-  await compare(join(root, 'docs/使用说明.html'), join(extracted, '使用说明.html')); await compare(join(root, 'docs/使用说明.html'), join(release, '使用说明.html'));
-  assert.ok((await readFile(join(extracted, 'install.cmd'), 'utf8')).includes('-Mode Install'));
-  for (const name of ['install-local.ps1', 'share-launcher.ps1']) assert.deepEqual([...(await readFile(join(extracted, 'tools', name))).subarray(0, 3)], [239, 187, 191]);
+  for (const name of ['install-local.ps1', 'uninstall-local.ps1', 'manage-release.ps1', 'share-launcher.ps1']) assert.equal((await readFile(join(extracted, 'plugin/_installer', name), 'utf8')).replace(/^\ufeff/, ''), (await readFile(join(root, 'tools', name), 'utf8')).replace(/^\ufeff/, ''));
+  await compare(join(root, 'README.md'), join(extracted, 'README.md')); await compare(join(root,'docs/RELEASE-NOTES.md'),join(release,'RELEASE-NOTES.md')); await compare(join(root, 'docs/使用说明.html'), join(release, '使用说明.html'));
+  assert.ok((await readFile(join(extracted, 'install.bat'), 'utf8')).includes('-Mode Install'));
+  assert.ok((await readFile(join(extracted, 'uninstall.bat'), 'utf8')).includes('-Mode Uninstall'));
+  for (const name of ['install-local.ps1', 'uninstall-local.ps1', 'manage-release.ps1', 'share-launcher.ps1']) assert.deepEqual([...(await readFile(join(extracted, 'plugin/_installer', name))).subarray(0, 3)], [239, 187, 191]);
   execFileSync(process.execPath, ['--test', '--test-reporter=dot', join(root, 'plugin/test/install-transaction.test.mjs')], {
-    windowsHide: true, stdio: 'inherit', env: { ...process.env, GUARD_INSTALL_SHELL: 'powershell.exe', GUARD_INSTALL_SCRIPT: join(extracted, 'tools/install-local.ps1') },
+    windowsHide: true, stdio: 'inherit', env: { ...process.env, GUARD_INSTALL_SHELL: 'powershell.exe', GUARD_INSTALL_SCRIPT: join(extracted, 'plugin/_installer/install-local.ps1') },
   });
+  execFileSync(process.execPath, [join(root,'tools/verify-portable-installer.mjs'),extracted], {windowsHide:true,stdio:'inherit'});
   console.log('PASS: plugin source, local assets/licenses, portable entries and Windows PowerShell 5.1 install/rollback');
 } finally {
   async function inspect(path) { const info = await lstat(path); assert.ok(!info.isSymbolicLink()); if (info.isDirectory()) for (const name of await readdir(path)) await inspect(join(path, name)); }
