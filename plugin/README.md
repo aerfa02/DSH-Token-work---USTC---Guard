@@ -1,61 +1,41 @@
 # USTC API Guard 1.0.0
 
-用于 DSH 和 TokenWorks（词元工坊）的 USTC 用量监控插件。按实际服务地址 `api.llm.ustc.edu.cn` 识别请求，显示用量、预计费用、预算进度和历史图表。
-
-## 功能
-
-- 蓝白监控面板：今日、近 3 小时和近 12 小时费用及进度；支持拖动、最小化和恢复。
-- 详情支持近 3/6/12/24 小时及日、周、月历史；可切换 Token 与预计费用纵轴、筛选类型、查看柱子明细。
-- 按 Asia/Shanghai 的请求发送日期归档；每日汇总长期保留，48 小时后的请求明细压缩到日汇总。缺失用量显示下界或待确认。
-- 支持 TokenWorks 企业认证和消息转换包装链；读取内层实际地址并保留原认证与转换。
-- 仅 USTC 请求使用 10 分钟流空闲超时。空闲超时是连续未收到数据的等待时间，停用插件后恢复宿主行为。
-- 鲸鱼娘 Live2D 支持透明背景、眨眼、视线跟随和点击自拍；失败时回退 GIF。首次使用从 Live2D 官方下载 Core 到用户本机缓存，仓库和安装包不分发 Core。
+在 DSH 中查看 USTC 模型的用量、预计费用和历史图表。
 
 ## 安装
 
-Windows 用户解压 `output/USTC-Guard-1.0.0/USTC一键安装包.zip`，完全退出 DSH（包括托盘），双击 `install.cmd`，按提示输入 DSH 安装目录和当前用户 profile 路径，完成后重启。运行时使用 DSH 自带的 Node.js。
+1. 解压随项目提供的 `USTC一键安装包.zip`。
+2. 保存工作，完全退出 DSH，包括托盘中的进程。
+3. 双击 `install.cmd`，按提示选择 DSH 安装目录和当前用户的 profile 路径。
+4. 安装成功后重新启动 DSH。
 
-从源码安装 DSH：
+## 使用
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-local.ps1 -DshDirectory 'D:\Apps\DSH' -ProfileDirectory "$env:USERPROFILE\.dsh\profiles\desktop"
-```
+- 选择 USTC 模型后，在面板查看今日、近 3 小时和近 12 小时用量。
+- 点击详情按钮，查看 Token 或预计费用图表；可以切换时间范围、筛选类型、点击柱子查看明细。
+- 点击最小化按钮收起面板，点击浮条恢复；拖动顶部横条移动，双击复位。
+- 费用为本机估算，不等同平台账单。
 
-TokenWorks 从源码安装：
+## 界面预览
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-tokenworks.ps1 -TokenWorksDirectory 'D:\Apps\TokenWorks'
-```
+以下图片由当前插件界面渲染，使用示例数据。
 
-TokenWorks 工具默认使用本机 LocalAppData 数据目录及 `desktop-017` profile；若实际 profile 不同，请根据 `tools/install-tokenworks.ps1` 中的调用显式设置正确路径。
+### 主面板
 
-安装工具会备份原插件和 profile。数据迁移保留原账本，使用 schemaVersion=2；软件版本 1.0.0 不代表账本格式降级。回滚前退出宿主，保留现有账本，并恢复与备份插件匹配的状态文件。
+![主面板：今日费用、RPM、并发和近期用量](assets/previews/main.png)
 
-## 费用与数据
+### 最小化
 
-默认每百万 Token 普通输入、输出及缓存写入 ¥2，缓存命中 ¥0.2；推理不重复叠加收费。金额是本机估算，不等同平台账单。默认 3/12/24 小时预算提醒线为 ¥30/¥70/¥100，RPM 和并发默认 20。
+![最小化浮条：今日和近3小时费用](assets/previews/minimized.png)
 
-插件保存本机用量和日汇总；图形界面读取脱敏快照，不展示 API 密钥。角色不发送模型请求。其他服务地址按原宿主行为处理。
+### Token 图表
 
-## 开发与打包
+![Token详情：时段分布与历史趋势](assets/previews/tokens.png)
 
-需要 Node.js 和 Windows PowerShell。在仓库根目录运行：
+### 费用图表
 
-```powershell
-node --test plugin/test/*.test.mjs
-node tools/build-release.mjs
-node tools/verify-release.mjs
-```
+![预计费用：时段分布与历史趋势](assets/previews/cost.png)
 
-打包工具拒绝覆盖已有发布目录；重建前删除该生成目录或传入新的输出路径。`tools/verify-*` 中的宿主验证需要本机安装对应宿主，可通过脚本中的环境变量设置路径。预览工具需要自行准备 `temp/` 下的 React UMD 和官方 Live2D Core，临时依赖不会入库。
+## 许可
 
-## 目录
-
-- `plugin/`：运行代码、测试、语言文件、角色资源及第三方声明。
-- `tools/`：安装、构建、校验与验证工具。
-- `docs/使用说明.html`：离线用户说明。
-- `output/USTC-Guard-1.0.0/`：唯一当前安装包和校验清单。
-
-## 许可和署名
-
-本项目原创代码采用 MIT，见 [LICENSE](LICENSE)。第三方内容保留各自许可：Live2D 模型和美术采用 CC BY-NC-SA 4.0，作者为上善无形、ZipZipPipe、氵六青；模型未修改。PixiJS、Live2D 引擎和上游代码的许可见 `plugin/assets/live2d/`。GIF 及静态图片来源和原始声明见 `plugin/assets/README.md`。项目 MIT 许可不替代第三方素材许可或授予底层角色的商业权利。
+原创代码采用 MIT。鲸鱼娘模型和美术采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)，作者为上善无形、ZipZipPipe、氵六青，模型未修改；其他素材及运行库的许可文件随插件保留。

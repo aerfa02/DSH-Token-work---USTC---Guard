@@ -69,12 +69,30 @@ export function protectedModels(ctx) {
   return result;
 }
 
+/** Native DeepSeek adapters expose endpoint config through dependencies.options, not current().
+ * Copy only the endpoint; never include credentials or invoke model/auth/network methods. */
+function configuredAdapterBaseURL(adapter) {
+  const visited = new Set();
+  for (let depth = 0; adapter && typeof adapter === 'object' && depth < 32; depth++) {
+    if (visited.has(adapter)) return null;
+    visited.add(adapter);
+    if (typeof adapter.dependencies?.options === 'function') {
+      try {
+        const baseURL = adapter.dependencies.options()?.baseURL;
+        return typeof baseURL === 'string' && baseURL.length ? baseURL : null;
+      } catch { return null; }
+    }
+    adapter = adapter.inner;
+  }
+  return null;
+}
+
 export function routeCatalog(ctx) {
   const result = [];
   for (const [provider, registration] of ctx.llm?.adapters ?? []) {
     try {
       const snapshot = adapterWithMethod(registration.adapter, 'current')?.current();
-      const baseURL = snapshotBaseURL(snapshot, provider);
+      const baseURL = snapshotBaseURL(snapshot, provider) ?? configuredAdapterBaseURL(registration.adapter);
       const models = [];
       try {
         for (const model of snapshot?.models?.getModels(provider) ?? []) {

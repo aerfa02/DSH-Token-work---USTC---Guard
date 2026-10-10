@@ -10,6 +10,7 @@ const source = join(root, 'plugin');
 const manifest = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'));
 const release = resolve(process.argv[2] ?? join(root, 'output', `USTC-Guard-${manifest.version}`));
 try { await lstat(release); throw new Error('发布目录已存在，拒绝覆盖。'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+await import('./build-help.mjs');
 const stage = await mkdtemp(join(tmpdir(), 'ustc-release-'));
 const quote = value => "'" + value.replaceAll("'", "''") + "'";
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
