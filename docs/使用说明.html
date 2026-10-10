@@ -1,61 +1,102 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>USTC API Guard 1.0.0 使用说明</title><style>body{max-width:900px;margin:32px auto;padding:0 20px;background:#f5f9ff;color:#24364e;font:16px/1.8 system-ui}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:white;padding:24px;border-radius:12px}</style></head><body><pre># USTC API Guard 1.0.0
-
-用于 DSH 和 TokenWorks（词元工坊）的 USTC 用量监控插件。按实际服务地址 `api.llm.ustc.edu.cn` 识别请求，显示用量、预计费用、预算进度和历史图表。
-
-## 功能
-
-- 蓝白监控面板：今日、近 3 小时和近 12 小时费用及进度；支持拖动、最小化和恢复。
-- 详情支持近 3/6/12/24 小时及日、周、月历史；可切换 Token 与预计费用纵轴、筛选类型、查看柱子明细。
-- 按 Asia/Shanghai 的请求发送日期归档；每日汇总长期保留，48 小时后的请求明细压缩到日汇总。缺失用量显示下界或待确认。
-- 支持 TokenWorks 企业认证和消息转换包装链；读取内层实际地址并保留原认证与转换。
-- 仅 USTC 请求使用 10 分钟流空闲超时。空闲超时是连续未收到数据的等待时间，停用插件后恢复宿主行为。
-- 鲸鱼娘 Live2D 支持透明背景、眨眼、视线跟随和点击自拍；失败时回退 GIF。首次使用从 Live2D 官方下载 Core 到用户本机缓存，仓库和安装包不分发 Core。
-
-## 安装
-
-Windows 用户解压 `output/USTC-Guard-1.0.0/USTC一键安装包.zip`，完全退出 DSH（包括托盘），双击 `install.cmd`，按提示输入 DSH 安装目录和当前用户 profile 路径，完成后重启。运行时使用 DSH 自带的 Node.js。
-
-从源码安装 DSH：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-local.ps1 -DshDirectory 'D:\Apps\DSH' -ProfileDirectory "$env:USERPROFILE\.dsh\profiles\desktop"
-```
-
-TokenWorks 从源码安装：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-tokenworks.ps1 -TokenWorksDirectory 'D:\Apps\TokenWorks'
-```
-
-TokenWorks 工具默认使用本机 LocalAppData 数据目录及 `desktop-017` profile；若实际 profile 不同，请根据 `tools/install-tokenworks.ps1` 中的调用显式设置正确路径。
-
-安装工具会备份原插件和 profile。数据迁移保留原账本，使用 schemaVersion=2；软件版本 1.0.0 不代表账本格式降级。回滚前退出宿主，保留现有账本，并恢复与备份插件匹配的状态文件。
-
-## 费用与数据
-
-默认每百万 Token 普通输入、输出及缓存写入 ¥2，缓存命中 ¥0.2；推理不重复叠加收费。金额是本机估算，不等同平台账单。默认 3/12/24 小时预算提醒线为 ¥30/¥70/¥100，RPM 和并发默认 20。
-
-插件保存本机用量和日汇总；图形界面读取脱敏快照，不展示 API 密钥。角色不发送模型请求。其他服务地址按原宿主行为处理。
-
-## 开发与打包
-
-需要 Node.js 和 Windows PowerShell。在仓库根目录运行：
-
-```powershell
-node --test plugin/test/*.test.mjs
-node tools/build-release.mjs
-node tools/verify-release.mjs
-```
-
-打包工具拒绝覆盖已有发布目录；重建前删除该生成目录或传入新的输出路径。`tools/verify-*` 中的宿主验证需要本机安装对应宿主，可通过脚本中的环境变量设置路径。预览工具需要自行准备 `temp/` 下的 React UMD 和官方 Live2D Core，临时依赖不会入库。
-
-## 目录
-
-- `plugin/`：运行代码、测试、语言文件、角色资源及第三方声明。
-- `tools/`：安装、构建、校验与验证工具。
-- `docs/使用说明.html`：离线用户说明。
-- `output/USTC-Guard-1.0.0/`：唯一当前安装包和校验清单。
-
-## 许可和署名
-
-本项目原创代码采用 MIT，见 [LICENSE](LICENSE)。第三方内容保留各自许可：Live2D 模型和美术采用 CC BY-NC-SA 4.0，作者为上善无形、ZipZipPipe、氵六青；模型未修改。PixiJS、Live2D 引擎和上游代码的许可见 `plugin/assets/live2d/`。GIF 及静态图片来源和原始声明见 `plugin/assets/README.md`。项目 MIT 许可不替代第三方素材许可或授予底层角色的商业权利。</pre></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USTC API Guard 1.0.0 · 使用说明</title>
+  <style>
+    :root{color-scheme:light;--ink:#20364e;--muted:#536a80;--blue:#1f5ca4;--line:#dce7f3;--soft:#f0f6fd}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:20px}
+    body{margin:0;background:#f4f8fd;color:var(--ink);font:16px/1.8 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+    main{width:min(960px,calc(100% - 40px));margin:40px auto 48px}
+    header{padding:34px 38px;background:#fff;border:1px solid var(--line);border-radius:18px}
+    .label{margin:0 0 10px;color:var(--blue);font-size:14px;font-weight:600}
+    h1{margin:0;font-size:clamp(28px,5vw,38px);line-height:1.35;letter-spacing:-.5px}
+    .intro{margin:14px 0 0;color:var(--muted);max-width:720px}
+    nav{display:flex;flex-wrap:wrap;gap:8px 20px;margin:20px 0;padding:0 4px}
+    a{color:var(--blue);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+    nav a{text-decoration:none;font-size:15px}a:focus-visible{outline:3px solid #89b5eb;outline-offset:4px}
+    section{margin:18px 0;padding:26px 32px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    h2{margin:0 0 15px;color:var(--blue);font-size:23px;line-height:1.4}h3{font-size:17px;margin:22px 0 8px}
+    p{margin:10px 0}ul,ol{margin:10px 0;padding-left:24px}li{margin:6px 0}
+    .features{display:grid;grid-template-columns:1fr 1fr;gap:14px}.feature{background:var(--soft);border-radius:10px;padding:16px 18px}
+    .feature h3{margin:0 0 5px}.feature p{margin:0;color:var(--muted);font-size:15px}
+    .note{margin:16px 0 0;padding:13px 16px;background:var(--soft);border-left:3px solid #5d91ca;border-radius:0 8px 8px 0}
+    code{background:#edf3fa;padding:2px 5px;border-radius:4px;font-family:Consolas,"Cascadia Mono",monospace;font-size:.9em;overflow-wrap:anywhere}
+    pre{margin:12px 0;padding:16px 18px;background:#edf3fa;border:1px solid var(--line);border-radius:9px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+    pre code{background:none;padding:0;border-radius:0}footer{padding:8px 4px;color:var(--muted);font-size:14px}
+    @media(max-width:600px){main{width:calc(100% - 24px);margin:16px auto 24px}header{padding:24px 20px}section{padding:22px 20px}.features{grid-template-columns:1fr}nav{gap:8px 16px}h2{font-size:21px}pre{padding:14px}}
+    @media print{body{background:#fff}main{width:100%;margin:0}header,section{border-radius:0;break-inside:avoid}nav{display:none}a{color:inherit}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <p class="label">版本 1.0.0 · Windows · DSH / TokenWorks</p>
+    <h1>USTC API Guard 使用说明</h1>
+    <p class="intro">查看 USTC 模型的用量、预计费用和历史趋势。插件按实际服务地址 <code>api.llm.ustc.edu.cn</code> 识别请求，支持蓝白监控面板和鲸鱼娘动画。</p>
+  </header>
+  <nav aria-label="说明目录"><a href="#install">安装</a><a href="#panel">面板与图表</a><a href="#cost">费用与预算</a><a href="#data">数据与回滚</a><a href="#help">常见问题</a><a href="#licenses">素材与许可</a></nav>
+  <section id="install">
+    <h2>安装与启动</h2>
+    <h3>DSH：使用一键安装包</h3>
+    <ol>
+      <li>取得 <code>USTC一键安装包.zip</code> 并解压。安装包旁的 <code>SHA256SUMS.txt</code> 用于核对文件完整性。</li>
+      <li>保存工作，完全退出 DSH，包括系统托盘中的进程。</li>
+      <li>双击 <code>install.cmd</code>，输入包含 <code>DeepSeek Harness.exe</code> 的安装目录，再确认当前用户的 profile 路径。</li>
+      <li>看到 <code>SUCCESS</code> 和安装核对结果后，重新启动 DSH，选择 USTC 地址的模型查看监控面板。</li>
+    </ol>
+    <p class="note">一键安装使用 Windows PowerShell 和 DSH 自带运行时，无需另装 Node.js。安装工具会备份原插件和 profile，请保存终端显示的备份路径。</p>
+    <h3>从源码安装</h3>
+    <p>在源码仓库根目录执行；示例中的安装目录请替换为你的实际路径。</p>
+    <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-local.ps1 -DshDirectory 'D:\Apps\DSH' -ProfileDirectory "$env:USERPROFILE\.dsh\profiles\desktop"</code></pre>
+    <h3>TokenWorks（词元工坊）</h3>
+    <p>完全退出 TokenWorks 后，在源码仓库根目录运行：</p>
+    <pre><code>powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-tokenworks.ps1 -TokenWorksDirectory 'D:\Apps\TokenWorks'</code></pre>
+    <p>工具默认使用当前用户 LocalAppData 下的数据目录和 <code>desktop-017</code> profile。若你的 profile 不同，应在安装前按 <code>tools/install-tokenworks.ps1</code> 的调用方式指定正确路径。</p>
+  </section>
+  <section id="panel">
+    <h2>面板与历史图表</h2>
+    <div class="features">
+      <div class="feature"><h3>日常监控</h3><p>主面板显示今日、近 3 小时和近 12 小时费用及预算进度。拖动顶部横条移动，双击复位；最小化后保留今日和近 3 小时费用。</p></div>
+      <div class="feature"><h3>用量详情</h3><p>详情按钮打开近 3/6/12/24 小时及日、周、月历史。切换 Token 与预计费用纵轴，筛选类型，点击柱子查看明细，翻页查看更早记录。</p></div>
+      <div class="feature"><h3>角色动画</h3><p>鲸鱼娘支持透明背景、眨眼、视线跟随和点击自拍。最小化仍显示；隐藏页面暂停，系统减少动画时静止，加载失败回退 GIF。</p></div>
+      <div class="feature"><h3>连接提示</h3><p>读取中、连接异常和地址识别等待会显示提示。确认选中其他平台地址后隐藏；首页没有选中会话时，检测到 USTC 路由即可显示。</p></div>
+    </div>
+    <p>TokenWorks 的认证和消息转换包装流程保持原样。插件读取内层实际服务地址；其他服务地址按原宿主行为处理。</p>
+  </section>
+  <section id="cost">
+    <h2>费用与预算</h2>
+    <ul>
+      <li>每百万 Token：普通输入、输出及缓存写入按 ¥2 估算，缓存命中按 ¥0.2 估算；推理不重复叠加收费。</li>
+      <li>默认近 3/12/24 小时预算提醒线为 ¥30/¥70/¥100，RPM 和并发默认 20。</li>
+      <li>未确认预留不计入已消费进度。缺失部分用量时显示已知费用下界；全部未知时显示待确认。</li>
+    </ul>
+    <p class="note">金额是本机估算，不等同平台账单。图表中的历史预计费用按相同固定单价折算。</p>
+  </section>
+  <section id="data">
+    <h2>数据、备份与回滚</h2>
+    <p>记录按 Asia/Shanghai 的请求发送日期归档，周一为周起点。每日汇总长期保留，48 小时后的请求明细压缩到日汇总。旧版本已删除的更早记录无法补回；记录起点和不完整周期会在详情中提示。</p>
+    <p>首次升级旧账本时，插件先备份原状态，再保存含历史的 <code>schemaVersion=2</code> 数据。软件版本 <code>1.0.0</code> 不代表账本格式降级。</p>
+    <p>回滚前完全退出宿主，另存当前账本，然后恢复备份插件及与它匹配的状态文件。旧插件可能无法读取新账本，只替换代码不足以完成回滚；保留当前账本可避免丢失升级期间新增记录。</p>
+    <p>界面读取脱敏快照，不展示 API 密钥；角色不发送模型请求。Live2D Core 首次从官方获取并缓存在用户本机，后续可离线使用；模型和贴图从插件本地加载。</p>
+  </section>
+  <section id="help">
+    <h2>常见问题</h2>
+    <h3>安装后没有监控面板</h3><p>先确认已从菜单和托盘完全退出并重启宿主，再确认实际模型地址为 USTC。若显示连接中或等待识别，须等待读数；提示出现不等于统计已经生效。</p>
+    <h3>请求为什么仍可能断开？</h3><p>插件仅对 USTC 请求设置 10 分钟流空闲超时，即连续未收到流数据的等待时间，并非任务总时长。该设置不能阻止上游服务器或网络自行断开；停用插件后恢复宿主原行为。</p>
+    <h3>角色无法显示或回退 GIF</h3><p>检查首次官方 Core 下载是否成功以及环境是否支持 WebGL。角色加载失败不影响监控；系统减少动画设置会停止连续渲染。</p>
+    <h3>如何确认统计正常？</h3><p>完成一条正常的 USTC 请求，将图表 Token 与宿主用量核对；重启后检查历史是否保留。用量尚未返回或不完整时，不应把未知费用当作零。</p>
+  </section>
+  <section id="licenses">
+    <h2>素材与许可</h2>
+    <p>项目原创代码采用 MIT。第三方内容保留独立许可和署名，项目 MIT 许可不替代素材许可或授予底层角色的商业权利。</p>
+    <ul>
+      <li>鲸鱼娘模型与美术：上善无形、ZipZipPipe、氵六青，模型未修改，采用 CC BY-NC-SA 4.0。完整声明随插件保存在 <code>assets/live2d/</code>。</li>
+      <li>备用 GIF：gmskywalker/deepseek-fat-fish-codex-pet；静态 PNG：1190fasheqi/dafeiyu-pet。原始声明和许可保存在 <code>assets/</code>。</li>
+      <li>PixiJS、Live2D 引擎及上游代码的许可文件随插件保留。</li>
+      <li>Live2D Cubism Core 不随仓库或安装包分发；使用时从官方获取。见 <a href="https://www.live2d.com/sdk/license/">Live2D 官方许可</a>。</li>
+    </ul>
+  </section>
+  <footer>USTC API Guard 1.0.0 · 本说明可离线阅读，无外部字体、脚本或图片依赖。</footer>
+</main></body></html>
