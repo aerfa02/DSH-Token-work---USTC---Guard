@@ -1,0 +1,28 @@
+import {pathToFileURL} from 'node:url';import {AsyncLocalStorage} from 'node:async_hooks';import assert from 'node:assert/strict';
+const product=process.env.DSH_RUNTIME_DIRECTORY ?? 'E:/TokenWorks/resources/product/d';
+const {AuthorizationScopedAdapter}=await import(pathToFileURL(product+'/node_modules/@eduwork/dsh-oidc/lib/provider/authorization-scope.js'));
+const {TransformingEnterpriseAdapter}=await import(pathToFileURL(product+'/node_modules/@eduwork/dsh-oidc/lib/provider/transform-adapter.js'));
+const {profilesFrom}=await import(pathToFileURL(product+'/node_modules/@eduwork/dsh-oidc/lib/provider/index.js'));
+const {PiAiAdapter}=await import(pathToFileURL(product+'/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js'));
+const root=process.env.GUARD_PACKAGE ? pathToFileURL(process.env.GUARD_PACKAGE.replaceAll('\\','/')+'/') : new URL('../plugin/',import.meta.url);
+const {routeBaseURL,routeCatalog,protectedModels}=await import(new URL('index.js',root));
+const {attachUstcTimeout}=await import(new URL('lib/stream-timeout.js',root));
+const provider='ustc-enterprise';
+const nativeProfiles=profilesFrom({providers:{[provider]:{baseURL:'https://api.llm.ustc.edu.cn/v1',apiKeyEnv:'SYNTHETIC_ONLY',models:[{id:'m',reasoning:false}]}}});
+const base=new PiAiAdapter({profiles:()=>nativeProfiles,auth:{credentials:{read:async()=>undefined,list:async()=>[]},authContext:{env:async()=>undefined,fileExists:async()=>false}}});
+const snapshot=base.current();
+const storage=new AsyncLocalStorage();let transformed=0,opened=0,closed=0,checked=0,seenTimeout;
+// Keep real snapshot and preparation; replace only upstream I/O with deterministic usage chunks.
+base.streamWithSnapshot=async function*(options,snap){assert.ok(storage.getStore(),'authorization lease must still own actual upstream execution');assert.equal(options.reasoningEffort,'off','native reasoning transform must run');seenTimeout=snap.profiles.get(provider).streamIdleTimeoutMs;yield{type:'usage',usage:{inputTokens:10,outputTokens:2}};yield{type:'finish',reason:{kind:'stop'}};};
+const transforming=new TransformingEnterpriseAdapter(base,{capabilities(_,__,modalities){return modalities},async apply(options){transformed++;return options}},()=>({reasoning:false}));
+const outer=new AuthorizationScopedAdapter(transforming,storage,async()=>({open(signal){opened++;return{signal,assertCurrent(){checked++},close(){closed++}}}}));
+const ctx={llm:{adapters:new Map([[provider,{adapter:outer}]])}};
+assert.equal(typeof outer.current,'undefined');
+assert.equal(routeBaseURL(ctx,provider,'m'),'https://api.llm.ustc.edu.cn/v1');
+assert.deepEqual(protectedModels(ctx),[{provider,model:'m'}]);const catalog=routeCatalog(ctx);assert.equal(catalog[0].models[0].protected,true);assert.equal(catalog[0].addressKnown, snapshot.profiles.get(provider).piProvider.baseUrl != null);
+console.log('PASS: native TokenWorks authorization/transform wrappers expose actual USTC model endpoint to Guard');
+const original=base.streamWithSnapshot;const detach=attachUstcTimeout(outer);assert.equal(typeof detach,'function');
+const chunks=[];for await(const chunk of outer.stream({provider,model:'m',messages:[],reasoningEffort:'high'}))chunks.push(chunk);
+assert.equal(seenTimeout,600000);assert.equal(snapshot.profiles.get(provider).streamIdleTimeoutMs,300000);assert.equal(transformed,1);assert.equal(opened,1);assert.equal(closed,1);assert.ok(checked>=3);assert.equal(chunks.length,2);
+detach();assert.equal(base.streamWithSnapshot,original);assert.equal(outer.inner,transforming);assert.equal(transforming.inner,base);
+console.log('PASS: 600000ms through native prepared call; authorization lease and message transform preserved; shared settings unchanged; unload restored');

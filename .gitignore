@@ -1,0 +1,12 @@
+node_modules/
+temp/
+output/
+.env
+.env.*
+*.log
+ustc-guard-state*.json
+/internal/
+/release/
+MEMORY.md
+*.pem
+*.key

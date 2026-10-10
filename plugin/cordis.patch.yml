@@ -1,0 +1,3 @@
+- insert:
+    - id: ustc-api-guard
+      name: '@local/dsh-ustc-api-guard'

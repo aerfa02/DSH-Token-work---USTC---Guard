@@ -1,0 +1,39 @@
+{
+  "name": "@local/dsh-ustc-api-guard",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "实时查看 USTC 模型用量、费用和请求状态，支持最小化与恢复",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "README.md",
+    "LICENSE",
+    "cordis.patch.yml",
+    "index.js",
+    "client.js",
+    "lib",
+    "locale",
+    "icon.svg",
+    "assets"
+  ],
+  "icon": "./icon.svg",
+  "meta": {
+    "title": "USTC API Guard",
+    "description": "实时查看 USTC 模型用量、费用和请求状态，支持最小化与恢复"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}
